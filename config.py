@@ -3,6 +3,9 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Baseline for Weixin Challenge 2022")
+    parser.add_argument("--exp_name", type=str, default='default', help="random seed.")
+    parser.add_argument("--local_rank", default=-1, help='use for DDP')
+    parser.add_argument("--device", default='cuda', help='device')
 
     parser.add_argument("--seed", type=int, default=2022, help="random seed.")
     parser.add_argument('--dropout', type=float, default=0.3, help='dropout ratio')

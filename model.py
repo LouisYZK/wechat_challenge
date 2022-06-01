@@ -19,7 +19,6 @@ class MultiModal(nn.Module):
 
     def forward(self, inputs, inference=False):
         bert_embedding = self.bert(inputs['title_input'], inputs['title_mask'])['pooler_output']
-
         vision_embedding = self.nextvlad(inputs['frame_input'], inputs['frame_mask'])
         vision_embedding = self.enhance(vision_embedding)
 

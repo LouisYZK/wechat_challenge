@@ -10,9 +10,9 @@ from category_id_map import lv2id_to_lv1id
 
 
 def setup_device(args):
-    args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    args.n_gpu = torch.cuda.device_count()
-
+    # args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # args.n_gpu = torch.cuda.device_count()
+    args.device = 'cpu'
 
 def setup_seed(args):
     random.seed(args.seed)

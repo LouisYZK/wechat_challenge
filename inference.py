@@ -17,8 +17,7 @@ def inference():
                             sampler=sampler,
                             drop_last=False,
                             pin_memory=True,
-                            num_workers=args.num_workers,
-                            prefetch_factor=args.prefetch)
+                            num_workers=args.num_workers)
 
     # 2. load model
     model = MultiModal(args)

@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import zipfile
 from io import BytesIO
@@ -7,26 +8,37 @@ from functools import partial
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
+from torch.utils.data.distributed import DistributedSampler
 from transformers import BertTokenizer
 
 from category_id_map import category_id_to_lv2id
 
+def get_worker_id(num_workers):
+    """
+    Cover pytorch 1.1.0, which not support torch.utils.data.get_worker_info().id
+    """
+    return os.getpid() % num_workers
 
 def create_dataloaders(args):
     dataset = MultiModalDataset(args, args.train_annotation, args.train_zip_feats)
     size = len(dataset)
     val_size = int(size * args.val_ratio)
-    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [size - val_size, val_size],
-                                                               generator=torch.Generator().manual_seed(args.seed))
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [size - val_size, val_size])
 
     if args.num_workers > 0:
-        dataloader_class = partial(DataLoader, pin_memory=True, num_workers=args.num_workers, prefetch_factor=args.prefetch)
+        # dataloader_class = partial(DataLoader, pin_memory=True, num_workers=args.num_workers, prefetch_factor=args.prefetch)
+        dataloader_class = partial(DataLoader, pin_memory=True, num_workers=args.num_workers) ## v1.1.0 not support prefetch
     else:
         # single-thread reading does not support prefetch_factor arg
         dataloader_class = partial(DataLoader, pin_memory=True, num_workers=0)
 
-    train_sampler = RandomSampler(train_dataset)
-    val_sampler = SequentialSampler(val_dataset)
+    if args.device == 'cuda':
+        train_sampler = RandomSampler(train_dataset)
+        val_sampler = SequentialSampler(val_dataset)
+    else:
+        # use DDP:
+        train_sampler = DistributedSampler(train_dataset)
+        val_sampler = DistributedSampler(val_dataset)
     train_dataloader = dataloader_class(train_dataset,
                                         batch_size=args.batch_size,
                                         sampler=train_sampler,
@@ -78,7 +90,8 @@ class MultiModalDataset(Dataset):
         # read data from zipfile
         vid = self.anns[idx]['id']
         if self.num_workers > 0:
-            worker_id = torch.utils.data.get_worker_info().id
+            # worker_id = torch.utils.data.get_worker_info().id
+            worker_id = get_worker_id(self.num_workers)
             if self.handles[worker_id] is None:
                 self.handles[worker_id] = zipfile.ZipFile(self.zip_feat_path, 'r')
             handle = self.handles[worker_id]
